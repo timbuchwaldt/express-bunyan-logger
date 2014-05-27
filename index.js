@@ -11,13 +11,13 @@ module.exports = function (opts) {
 };
 
 
-module.exports.errorLogger = function (opts) {
-    var logger, opts = opts || {}, format,
+module.exports.errorLogger = function (logger) {
+    var format, opts={},
         immediate = false,
         parseUA = true,
         levelFn = defaultLevelFn;
 
-    // default format 
+    // default format
     format = opts.format || ":remote-address :incoming :method :url HTTP/:http-version :status-code :res-headers[content-length] :referer :user-agent[family] :user-agent[major].:user-agent[minor] :user-agent[os] :response-time ms";
     delete opts.format; // don't pass it to bunyan
     (typeof format != 'function') && (format = compile(format));
@@ -46,22 +46,12 @@ module.exports.errorLogger = function (opts) {
             var app = req.app || res.app,
                 status = res.statusCode,
                 method = req.method,
+                id = req.id || res.id,
                 url = req.url || '-',
-                referer = req.header('referer') || req.header('referrer') || '-',
                 ua = parseUA ? useragent.parse(req.header('user-agent')) : req.header('user-agent'),
                 httpVersion = req.httpVersionMajor + '.' + req.httpVersionMinor,
                 responseTime = Date.now() - startTime,
                 ip, logFn;
-
-
-            if (!logger) {
-                opts.name = (opts.name || app.settings.shortname || app.settings.name || app.settings.title || 'express');
-                opts.serializers = opts.serializers || {};
-                opts.serializers.req = opts.serializers.req || bunyan.stdSerializers.req;
-                opts.serializers.res = opts.serializers.res || bunyan.stdSerializers.res;
-                err && ( opts.serializers.err = opts.serializers.err || bunyan.stdSerializers.err);
-                logger = bunyan.createLogger(opts);
-            }
 
 
             var level = levelFn(status, err);
@@ -75,19 +65,15 @@ module.exports.errorLogger = function (opts) {
             var meta = {
                 'remote-address': ip,
                 'ip': ip,
+                'id': id,
                 'method': method,
                 'url': url,
-                'referer': referer,
                 'user-agent': ua,
-                'body': req.body,
-                'short-body': util.inspect(req.body).substring(0, 20),
                 'http-version': httpVersion,
                 'response-time': responseTime,
-                "status-code": status,
+                'status-code': status,
                 'req-headers': req.headers,
                 'res-headers': res._headers,
-                'req': req,
-                'res': res,
                 'incoming':incoming?'-->':'<--'
             };
 
